@@ -2,6 +2,7 @@
  *     { id, name, summary, episodesUrl }
  */
 
+const MISSING_IMAGE = "https://tinyurl.com/tv-missing";
 
 /** Search Shows
  *    - given a search term, search for tv shows that
@@ -18,8 +19,6 @@
       }
  */
 async function searchShows(query) {
-  // TODO: Make an ajax request to the searchShows api.  Remove
-  // hard coded data.
 
   let show = await axios.get('http://api.tvmaze.com/search/shows',
     { params: { q: query } }
@@ -28,23 +27,17 @@ async function searchShows(query) {
   let showObj = [];
 
   for (let i=0; i<show.data.length; i++) {
+    let showImage = show.data[i].show.image ? show.data[i].show.image.original : MISSING_IMAGE;
+    
     showObj.push({
       id: show.data[i].show.id,
       name: show.data[i].show.name,
       summary: show.data[i].show.summary,
-      image: show.data[i].show.image      
+      image: showImage  
     })
   }
 
   return showObj;
-  // return [
-  //   {
-  //     id: 1767,
-  //     name: "The Bletchley Circle",
-  //     summary: "<p><b>The Bletchley Circle</b> follows the journey of four ordinary women with extraordinary skills that helped to end World War II.</p><p>Set in 1952, Susan, Millie, Lucy and Jean have returned to their normal lives, modestly setting aside the part they played in producing crucial intelligence, which helped the Allies to victory and shortened the war. When Susan discovers a hidden code behind an unsolved murder she is met by skepticism from the police. She quickly realises she can only begin to crack the murders and bring the culprit to justice with her former friends.</p>",
-  //     image: "http://static.tvmaze.com/uploads/images/medium_portrait/147/369403.jpg"
-  //   }
-  // ]
 }
 
 
@@ -58,18 +51,22 @@ function populateShows(shows) {
   $showsList.empty();
 
   for (let show of shows) {
+
     let $item = $(
       `<div class="col-md-6 col-lg-3 Show" data-show-id="${show.id}">
          <div class="card" data-show-id="${show.id}">
            <div class="card-body">
              <h5 class="card-title">${show.name}</h5>
              <p class="card-text">${show.summary}</p>
+             <img class="card-img-top" src="${show.image}">
+             <button id=${show.id}>Show Episodes</button>
            </div>
          </div>
        </div>
       `);
-
     $showsList.append($item);
+
+    $(`#${show.id}`).on('click', buttonHandler);  
   }
 }
 
@@ -85,7 +82,8 @@ $("#search-form").on("submit", async function handleSearch(evt) {
   let query = $("#search-query").val();
   if (!query) return;
 
-  $("#episodes-area").hide();
+  // Show the episode-area (initially hidden - none)
+  $("#episodes-area").show();
 
   let shows = await searchShows(query);
 
@@ -98,9 +96,23 @@ $("#search-form").on("submit", async function handleSearch(evt) {
  */
 
 async function getEpisodes(id) {
-  // TODO: get episodes from tvmaze
-  //       you can get this by making GET request to
-  //       http://api.tvmaze.com/shows/SHOW-ID-HERE/episodes
+  let episodes = await axios.get(`http://api.tvmaze.com/shows/${id}/episodes`);
+  return episodes.data;
+}
 
-  // TODO: return array-of-episode-info, as described in docstring above
+function populateEpisodes (episodes) {
+  let episodeList = $('#episodes-list');
+
+  for (let i=0; i<episodes.length; i++) {
+    let episode = $(`<li>${episodes[i].name} (season ${episodes[i].season}, number ${episodes[i].number})</li>`);
+    episodeList.append(episode);
+  }
+}
+
+async function buttonHandler (evt) {
+  $('#episodes-list').empty();
+
+  let domEpisodes = await getEpisodes(evt.target.id);
+  // console.log(domEpisodes);
+  populateEpisodes(domEpisodes);
 }
